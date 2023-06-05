@@ -1,0 +1,71 @@
+# This is a basic workflow for building docker images
+
+name: CI
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  
+jobs:
+  
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+
+      # Runs a single command using the runners shell
+      - name: Run a one-line script
+        run: echo Hello, world!
+
+      # Runs a set of commands using the runners shell
+      - name: Run a multi-line script
+        run: |
+       
+	docker build -t my_db -f Dockerfile_mysql . 
+	docker build -t my_app -f Dockerfile . 
+
+	aws ecr create-repository  --repository-name my_db_repo  --image-scanning-configuration scanOnPush=true
+	aws ecr create-repository  --repository-name my_app_repo  --image-scanning-configuration scanOnPush=true
+
+	# Find the docker repo name
+	aws ecr describe-repositories
+
+	# Export docker repo name, replace with your account id
+	export ECR="417374112702.dkr.ecr.us-east-1.amazonaws.com/my_db_repo"
+	export REPO_NAME=my_db
+
+	# Find the docker repo name
+	aws ecr describe-repositories
+
+	# Export docker repo name, replace with your account id
+	export ECR="417374112702.dkr.ecr.us-east-1.amazonaws.com/my_app_repo"
+	export REPO_NAME=my_app
+
+
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: Build and push MySQL image
+        env:
+          ECR_REPOSITORY: mysql
+        run: |
+          docker build -t $ECR_REPOSITORY:mysql ./mysql
+          docker tag $ECR_REPOSITORY:mysql $ECR_REPOSITORY:mysql
+          docker push $ECR_REPOSITORY:mysql
+      - name: Build and push application image
+        env:
+          ECR_REPOSITORY: webapp
+        run: |
+          docker build -t $ECR_REPOSITORY:app ./app
+          docker tag $ECR_REPOSITORY:app $ECR_REPOSITORY:app
+          docker push $ECR_REPOSITORY:app
+
+
+
+
